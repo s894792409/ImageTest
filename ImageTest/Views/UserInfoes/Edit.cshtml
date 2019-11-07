@@ -1,0 +1,261 @@
+﻿@model ImageTest.Models.UserInfo
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h2>Edit</h2>
+
+<h4>UserInfo</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Id" />
+            <div class="form-group">
+                <label class="control-label">Photo</label><br />
+                <img id="show-img" class="thumbnail" src="/UserInfoes/ViewPhoto?id=@Model.Id" style="width:150px;height:150px;border:2px solid #808080;">
+                <button class="btn btn-primary" data-toggle="modal" data-target="#myModal" type="button">上传图片</button>
+                <br /><span class="text-danger" id="photoerr"></span>
+            </div>
+
+            <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" style="width:95%">
+                <div class="modal-dialog" style="width:95%">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                        </div>
+                        <div class="modal-body ">
+                            <h4 class="modal-title" id="myModalLabel">上传图片</h4>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <br /><br /><br />
+                                    <input type="file" name="txt_file" id="txt_file" multiple class="file-loading" style="align-content:flex-end;" />
+                                </div>
+                                <div>
+                                    <h4>图片说明：</h4>
+                                    <p>1、图片格式需要jpg、gif、png为后缀名.</p>
+                                    <p>2、图片可以在线裁剪大小,以裁剪后为最终结果.</p>
+                                    <p>3、图片上传完毕即可关闭窗口.</p>
+                                </div>
+                            </div>
+                            <div class="row">
+
+                                <img id="cut-img" class="thumbnail " src="/UserInfoes/ViewPhoto?id=@Model.Id">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label asp-for="UserName" class="control-label"></label>
+                <input asp-for="UserName" id="UserNameval" class="form-control" />
+                <span asp-validation-for="UserName" id="UserNameerr" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Name"  class="control-label"></label>
+                <input asp-for="Name" id="Nameval"  class="form-control" />
+                <span asp-validation-for="Name" id="Nameerr" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="button" onclick="check()" value="Save" class="btn btn-default" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script type="text/javascript">
+
+        //http://code.ciaoca.com/jquery/jcrop/
+        //http://code.ciaoca.com/jquery/jcrop/demo/animation
+        //http://plugins.krajee.com/file-input
+        //http://plugins.krajee.com/file-advanced-usage-demo#advanced-example-5
+        var file;
+        var tailorInfo = "";
+        var photoflag = false;//判断图片是否上传成功的flag
+        var chengephoto = false;//判断是否更改了图片的flag
+        var formData = new FormData();//用来保存需要提交的信息
+        //初始化fileinput
+        function FileInput(ctrlName, uploadUrl) {
+            var oFile = new Object();
+
+            oFile.Init = function (ctrlName, uploadUrl) {
+                var control = $('#' + ctrlName);
+                //初始化上传控件的样式
+                control.fileinput({
+                    language: 'zh', //设置语言
+                    browseLabel: '选择',
+                    browseIcon: "<i class=\"glyphicon glyphicon-picture\"></i> ",
+                    browseClass: "btn btn-primary", //按钮样式
+                    uploadUrl: uploadUrl, //上传的地址
+                    allowedFileExtensions: ['jpg', 'gif', 'png'],//接收的文件后缀
+                    showUpload: true, //是否显示上传按钮
+                    showCaption: true,//是否显示标题
+                    showPreview: false,//隐藏预览
+                    dropZoneEnabled: false,//是否显示拖拽区域
+                    uploadAsync: true,//采用异步
+                    autoReplace: true,
+                    //minImageWidth: 50,
+                    //minImageHeight: 50,
+                    //maxImageWidth: 1000,
+                    //maxImageHeight: 1000,
+                    //maxFileSize: 0,//单位为kb，如果为0表示不限制文件大小
+                    //minFileCount: 0,
+                    maxFileCount: 1, //表示允许同时上传的最大文件个数
+                    enctype: 'multipart/form-data',
+                    validateInitialCount: true,
+                    previewFileIcon: "<i class='glyphicon glyphicon-king'></i>",
+                    msgFilesTooMany: "选择上传的文件数量({n}) 超过允许的最大数值{m}！",
+                    uploadExtraData: function () {
+                        return { "tailorInfo": tailorInfo };
+                    }
+                });
+            }
+
+            return oFile;
+        };
+
+        function PageInit() {
+            var jcorp = null;
+            var _this = this;
+            var fileInput = new FileInput();
+            fileInput.Init("txt_file", "@Url.Action("UpLoadFile")");
+            var input = $('#txt_file');
+
+            //图片上传完成后
+            input.on("fileuploaded", function (event, data, previewId, index) {
+                if (data.response.success) {
+                    jcorp.destroy();
+                    var str = data.response.message;
+                    $('#cut-img').removeAttr('style');
+                    $('#cut-img').attr('src', data.response.newImage);//Data URI Scheme形式
+                    //$('#cut-img').width(data.response.width).height(data.response.height);
+                    $('#show-img').attr('src', data.response.newImage);//Data URI Scheme形式
+                    photoflag = true;
+                    alert("success");
+                    //$('#cut-img').attr('src', data.response.newImage + "?t=" + Math.random());//加尾巴解决缓存问题
+                }
+            });
+            //选择图片后触发
+            input.on('change', function (event, data, previewId, index) {
+                var img = $('#cut-img');
+                chengephoto = true;
+                if (input[0].files && input[0].files[0]) {
+                    file = input[0].files[0];
+                    formData.append("files", input[0].files[0]);//保存用户上传的图片
+                    var reader = new FileReader();
+                    reader.readAsDataURL(input[0].files[0]);
+                    reader.onload = function (e) {
+                        img.removeAttr('style');
+                        img.removeAttr('src');
+                        img.attr('src', e.target.result);
+                        img.Jcrop({
+                            setSelect: [0, 0, 150, 150],
+                            //handleSize: 10,
+
+                            aspectRatio: 1,//选框宽高比
+                            bgFade: false,
+                            bgColor: 'black',
+                            bgOpacity: 0.3,
+                            onSelect: updateCords
+                        }, function () {
+                            jcorp = this;
+                        });
+                    };
+                    if (jcorp != undefined) {
+                        jcorp.destroy();
+                    }
+                }
+                function updateCords(obj) {
+                    tailorInfo = JSON.stringify({ "PictureWidth": $('.jcrop-holder').css('width'), "PictureHeight": $('.jcrop-holder').css('height'), "CoordinateX": obj.x, "CoordinateY": obj.y, "CoordinateWidth": obj.w, "CoordinateHeight": obj.h });
+                    console.log(tailorInfo);
+                }
+            });
+
+            //上传出现错误
+            input.on('fileuploaderror', function (event, data, msg) {
+                alert("Error \n"+event + msg);
+                photoflag = false;
+                //jcorp.destroy();
+                //$('#cut-img').attr('src', '/Content/defaultAvatar.jpg');
+                return false;
+            });
+
+            //移除图片
+            input.on('fileclear', function (event) {
+                console.log("fileclear");
+                jcorp.destroy();
+                $('#cut-img').attr('src', '~/tapmodo-Jcrop-1902fbc/demos/demo_files/sago.jpg');
+            });
+        };
+
+        $(function () {
+            PageInit();
+
+        });
+
+        function check() {
+            var UserNameval = $("#UserNameval");//UserName的值
+            var UserNameerr = $("#UserNameerr");//UserName输入格式错误时的提示
+            var Nameval = $("#Nameval");//Name的值
+            var Nameerr = $("#Nameerr");//Name输入格式错误时的提示
+            var photoerr = $("#photoerr");//photo未成功上传时的提示
+            var checkformat = true;//检查格式的flag
+            if (UserNameval.val() == "") {
+                UserNameerr.html("用户名不能为空！");
+                checkformat = false;
+            } else {
+                UserNameerr.html("");
+            }
+            if (Nameval.val() == "") {
+                Nameerr.html("姓名不能为空！");
+                checkformat = false;
+            } else {
+                Nameerr.html("");
+            }
+            if (chengephoto) {
+                if (photoflag) {
+                    photoerr.html("");
+                } else {
+                    photoerr.html("图片未正确上传！")
+                    checkformat = false;
+                }
+            }
+            if (checkformat == true ) {  //验证完成后将数据通过ajax传到Controller
+                formData.append("tailorInfo", tailorInfo);
+                var userid =@Model.Id;
+                var Userinfo = JSON.stringify({ "Id": userid, "UserName": UserNameval.val(), "Name": Nameval.val() });
+                formData.append("Userinfo", Userinfo);
+                console.log(Userinfo);
+                $.ajax({
+                    url: '@Url.Action("UpdateData")',//这里填写Controller接收的方法
+                    type: 'POST',
+                    data: formData,
+                    async: false,
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    success: function (returndata) {
+                        if (returndata.success) {
+                            alert("Success! \n");
+                            window.location.href = "/UserInfoes/index";// 重定向网页
+                        } else {
+                            alert("Error!\n"+returndata.msg);
+                        }
+                    },
+                    error: function (returndata) {
+                        alert(returndata.msg);
+
+                    }
+                });
+            }
+        }
+    </script>
+}
